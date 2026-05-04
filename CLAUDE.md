@@ -26,8 +26,8 @@ npm install        # installs deps
 
 ## Critical Invariants — Read Before Changing Anything
 
-### 1. WASM is loaded from CDN via `toBlobURL`
-`getFFmpegURLs()` in `useFFmpeg.js` fetches WASM files from unpkg at runtime using `toBlobURL` from `@ffmpeg/ffmpeg`. This converts them to `blob:` URLs with the correct MIME type so the browser accepts cross-origin WASM. The packages `@ffmpeg/core` and `@ffmpeg/core-mt` are **not** installed — do not add them back. If upgrading the ffmpeg version, update the version string in both CDN base URLs inside `getFFmpegURLs()`.
+### 1. WASM is loaded from CDN as plain URLs
+`getFFmpegURLs()` in `useFFmpeg.js` returns plain `https://` unpkg URLs for the core JS, WASM, and worker files. These are passed directly to `ffmpeg.load()` — no blob URL wrapping needed in 0.12.x. The packages `@ffmpeg/core` and `@ffmpeg/core-mt` are **not** installed — do not add them back. If upgrading the ffmpeg version, update the version string in both CDN base URLs inside `getFFmpegURLs()`.
 
 ### 2. COOP/COEP headers must be set in all three places
 - `vite.config.js → server.headers` for local dev
@@ -65,17 +65,17 @@ Without `optimizeDeps: { exclude: ['@ffmpeg/ffmpeg'] }`, Vite's pre-bundler cras
 ## ffmpeg.wasm v0.12 API Reference
 
 ```js
-import { FFmpeg, toBlobURL } from '@ffmpeg/ffmpeg'
+import { FFmpeg } from '@ffmpeg/ffmpeg'
 
 const ffmpeg = new FFmpeg()
 ffmpeg.on('progress', ({ progress }) => { /* 0–1 */ })
 
-// CDN URLs must be converted to blob: URLs for correct MIME type
+// 0.12.x accepts plain https:// CDN URLs directly
 const base = 'https://unpkg.com/@ffmpeg/core-mt@0.12.6/dist/esm'
 await ffmpeg.load({
-  coreURL:   await toBlobURL(`${base}/ffmpeg-core.js`, 'text/javascript'),
-  wasmURL:   await toBlobURL(`${base}/ffmpeg-core.wasm`, 'application/wasm'),
-  workerURL: await toBlobURL(`${base}/ffmpeg-core.worker.js`, 'text/javascript'),
+  coreURL:   `${base}/ffmpeg-core.js`,
+  wasmURL:   `${base}/ffmpeg-core.wasm`,
+  workerURL: `${base}/ffmpeg-core.worker.js`,
 })
 
 await ffmpeg.writeFile('input.mp4', uint8Array)
