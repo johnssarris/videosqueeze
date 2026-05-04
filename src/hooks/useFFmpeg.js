@@ -1,7 +1,8 @@
 import { useRef, useState, useCallback, useEffect } from 'react'
 import { FFmpeg } from '@ffmpeg/ffmpeg'
+import { toBlobURL } from '@ffmpeg/util'
 
-function getFFmpegURLs() {
+async function getFFmpegURLs() {
   const isMultiThread =
     typeof crossOriginIsolated !== 'undefined' &&
     crossOriginIsolated === true &&
@@ -9,21 +10,20 @@ function getFFmpegURLs() {
 
   if (isMultiThread) {
     const base = 'https://unpkg.com/@ffmpeg/core-mt@0.12.6/dist/esm'
-    return {
-      threaded: true,
-      coreURL: `${base}/ffmpeg-core.js`,
-      wasmURL: `${base}/ffmpeg-core.wasm`,
-      workerURL: `${base}/ffmpeg-core.worker.js`,
-    }
+    const [coreURL, wasmURL, workerURL] = await Promise.all([
+      toBlobURL(`${base}/ffmpeg-core.js`, 'text/javascript'),
+      toBlobURL(`${base}/ffmpeg-core.wasm`, 'application/wasm'),
+      toBlobURL(`${base}/ffmpeg-core.worker.js`, 'text/javascript'),
+    ])
+    return { threaded: true, coreURL, wasmURL, workerURL }
   }
 
   const base = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm'
-  return {
-    threaded: false,
-    coreURL: `${base}/ffmpeg-core.js`,
-    wasmURL: `${base}/ffmpeg-core.wasm`,
-    workerURL: undefined,
-  }
+  const [coreURL, wasmURL] = await Promise.all([
+    toBlobURL(`${base}/ffmpeg-core.js`, 'text/javascript'),
+    toBlobURL(`${base}/ffmpeg-core.wasm`, 'application/wasm'),
+  ])
+  return { threaded: false, coreURL, wasmURL, workerURL: undefined }
 }
 
 export function useFFmpeg() {
@@ -41,7 +41,7 @@ export function useFFmpeg() {
     setLoadError(null)
     try {
       const ffmpeg = new FFmpeg()
-      const urls = getFFmpegURLs()
+      const urls = await getFFmpegURLs()
 
       await ffmpeg.load({
         coreURL: urls.coreURL,

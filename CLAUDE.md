@@ -26,8 +26,8 @@ npm install        # installs deps
 
 ## Critical Invariants — Read Before Changing Anything
 
-### 1. WASM is loaded from CDN as plain URLs
-`getFFmpegURLs()` in `useFFmpeg.js` returns plain `https://` unpkg URLs for the core JS, WASM, and worker files. These are passed directly to `ffmpeg.load()` — no blob URL wrapping needed in 0.12.x. The packages `@ffmpeg/core` and `@ffmpeg/core-mt` are **not** installed — do not add them back. If upgrading the ffmpeg version, update the version string in both CDN base URLs inside `getFFmpegURLs()`.
+### 1. WASM is loaded from CDN via `toBlobURL`
+`getFFmpegURLs()` in `useFFmpeg.js` fetches WASM files from unpkg using `toBlobURL` from `@ffmpeg/util`. This is required for cross-origin WASM to work in Safari — plain CDN URLs fail on iOS. The packages `@ffmpeg/core` and `@ffmpeg/core-mt` are **not** installed — do not add them back. If upgrading the ffmpeg version, update the version string in both CDN base URLs inside `getFFmpegURLs()`.
 
 ### 2. COOP/COEP headers must be set in all three places
 - `vite.config.js → server.headers` for local dev
@@ -66,16 +66,17 @@ Without `optimizeDeps: { exclude: ['@ffmpeg/ffmpeg'] }`, Vite's pre-bundler cras
 
 ```js
 import { FFmpeg } from '@ffmpeg/ffmpeg'
+import { toBlobURL } from '@ffmpeg/util'
 
 const ffmpeg = new FFmpeg()
 ffmpeg.on('progress', ({ progress }) => { /* 0–1 */ })
 
-// 0.12.x accepts plain https:// CDN URLs directly
+// toBlobURL is required for cross-origin WASM to work in Safari
 const base = 'https://unpkg.com/@ffmpeg/core-mt@0.12.6/dist/esm'
 await ffmpeg.load({
-  coreURL:   `${base}/ffmpeg-core.js`,
-  wasmURL:   `${base}/ffmpeg-core.wasm`,
-  workerURL: `${base}/ffmpeg-core.worker.js`,
+  coreURL:   await toBlobURL(`${base}/ffmpeg-core.js`, 'text/javascript'),
+  wasmURL:   await toBlobURL(`${base}/ffmpeg-core.wasm`, 'application/wasm'),
+  workerURL: await toBlobURL(`${base}/ffmpeg-core.worker.js`, 'text/javascript'),
 })
 
 await ffmpeg.writeFile('input.mp4', uint8Array)
