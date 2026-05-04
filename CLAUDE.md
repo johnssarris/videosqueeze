@@ -21,16 +21,19 @@ npm install        # installs deps AND copies WASM files via postinstall
 | `src/components/` | Stateless-ish UI components, no business logic |
 | `scripts/copy-ffmpeg-wasm.js` | postinstall: copies WASM from node_modules → public/ffmpeg/ |
 | `vite.config.js` | COOP/COEP dev headers, Workbox config, optimizeDeps exclusions |
-| `vercel.json` | COOP/COEP production headers |
+| `vercel.json` | COOP/COEP production headers (Vercel) |
+| `public/_headers` | COOP/COEP production headers (Cloudflare Pages) |
+| `public/_redirects` | SPA routing fallback (Cloudflare Pages) |
 
 ## Critical Invariants — Read Before Changing Anything
 
 ### 1. WASM must always be same-origin
 Never load `@ffmpeg/core` or `@ffmpeg/core-mt` from a CDN. The files in `public/ffmpeg/` are served by the app's own origin. If you update the ffmpeg packages, the copy script in `scripts/copy-ffmpeg-wasm.js` will re-copy them on the next `npm install`.
 
-### 2. COOP/COEP headers must be set in both places
+### 2. COOP/COEP headers must be set in all three places
 - `vite.config.js → server.headers` for local dev
-- `vercel.json` for production
+- `vercel.json` for Vercel production
+- `public/_headers` for Cloudflare Pages production (Vite copies this to `dist/`)
 
 `SharedArrayBuffer` requires both `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: require-corp`. Removing either breaks multi-thread mode silently.
 

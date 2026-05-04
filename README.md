@@ -24,13 +24,30 @@ npm run dev        # http://localhost:5173
 > **Why the postinstall step?**
 > ffmpeg.wasm's multi-thread build spawns Worker threads using a worker script that must be served from the **same origin** as the page — cross-origin workers can't access `SharedArrayBuffer`. The postinstall script copies the WASM core files out of `node_modules/` into `public/ffmpeg/` so they're always self-hosted.
 
-## Deploying to Vercel
+## Deploying
+
+### Vercel
 
 Connect `johnssarris/videosqueeze` to Vercel and point it at whatever branch you want. No extra config required.
 
 The `vercel.json` at the repo root sets `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: require-corp` on every response. These headers are required for `SharedArrayBuffer` to be available — without them, the multi-thread build silently falls back.
 
 Vercel runs `npm install` on every deploy (which triggers the WASM copy via `postinstall`), then `npm run build`.
+
+### Cloudflare Pages
+
+Connect the repo to Cloudflare Pages with these build settings:
+
+| Setting | Value |
+|---|---|
+| Framework preset | None |
+| Build command | `npm run build` |
+| Build output directory | `dist` |
+| Environment variables | _(none required)_ |
+
+The `public/_headers` file sets the COOP/COEP headers on every response (Cloudflare Pages reads `_headers` from the output directory). The `public/_redirects` file routes all paths to `index.html` for SPA navigation. Both files are copied to `dist/` automatically by Vite during the build.
+
+> **Note:** Do not set `GITHUB_PAGES=true` on Cloudflare Pages — that flag switches the Vite `base` to `/videosqueeze/` which is only correct for GitHub Pages hosting.
 
 ## Project Structure
 
@@ -54,7 +71,9 @@ Vercel runs `npm install` on every deploy (which triggers the WASM copy via `pos
 │   │   └── ResultView.jsx
 │   └── App.jsx              # Top-level state + layout
 ├── vite.config.js           # COOP/COEP headers, PWA config, WASM exclusions
-└── vercel.json              # COOP/COEP headers for production
+├── vercel.json              # COOP/COEP headers for Vercel
+├── public/_headers          # COOP/COEP headers for Cloudflare Pages
+└── public/_redirects        # SPA fallback routing for Cloudflare Pages
 ```
 
 ## Architecture Notes
@@ -83,4 +102,4 @@ The version string (`v1.0.0`) is pulled from `package.json` at build time via Vi
 | Build | Vite 5 |
 | Video | @ffmpeg/ffmpeg 0.12, @ffmpeg/core, @ffmpeg/core-mt |
 | PWA | vite-plugin-pwa 0.20 (Workbox) |
-| Deploy | Vercel |
+| Deploy | Vercel, Cloudflare Pages |
