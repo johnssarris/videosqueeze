@@ -8,7 +8,7 @@ Client-side video compression PWA. ffmpeg.wasm runs in the browser — no server
 npm run dev        # dev server at localhost:5173 with COOP/COEP headers
 npm run build      # production build → dist/
 npm run preview    # preview the production build locally
-npm install        # installs deps AND copies WASM files via postinstall
+npm install        # installs deps
 ```
 
 ## Key Files
@@ -19,7 +19,6 @@ npm install        # installs deps AND copies WASM files via postinstall
 | `src/utils/ffmpegArgs.js` | Pure ffmpeg command builder + estimated output size calculator |
 | `src/App.jsx` | Top-level state owner; wires all hooks and components |
 | `src/components/` | Stateless-ish UI components, no business logic |
-| `scripts/copy-ffmpeg-wasm.js` | postinstall: copies WASM from node_modules → public/ffmpeg/ |
 | `vite.config.js` | COOP/COEP dev headers, Workbox config, optimizeDeps exclusions |
 | `vercel.json` | COOP/COEP production headers (Vercel) |
 | `public/_headers` | COOP/COEP production headers (Cloudflare Pages) |
@@ -27,8 +26,8 @@ npm install        # installs deps AND copies WASM files via postinstall
 
 ## Critical Invariants — Read Before Changing Anything
 
-### 1. WASM must always be same-origin
-Never load `@ffmpeg/core` or `@ffmpeg/core-mt` from a CDN. The files in `public/ffmpeg/` are served by the app's own origin. If you update the ffmpeg packages, the copy script in `scripts/copy-ffmpeg-wasm.js` will re-copy them on the next `npm install`.
+### 1. WASM is loaded from CDN via `toBlobURL`
+`getFFmpegURLs()` in `useFFmpeg.js` fetches WASM files from unpkg at runtime using `toBlobURL` from `@ffmpeg/ffmpeg`. This converts them to `blob:` URLs with the correct MIME type so the browser accepts cross-origin WASM. The packages `@ffmpeg/core` and `@ffmpeg/core-mt` are **not** installed — do not add them back. If upgrading the ffmpeg version, update the version string in both CDN base URLs inside `getFFmpegURLs()`.
 
 ### 2. COOP/COEP headers must be set in all three places
 - `vite.config.js → server.headers` for local dev
@@ -60,24 +59,23 @@ const { needRefresh, updateServiceWorker } = useRegisterSW()
 if (needRefresh) { ... }  // always true!
 ```
 
-### 5. WASM files are excluded from Workbox precache
-`globIgnores: ['ffmpeg/**']` in `vite.config.js` keeps the 30 MB+ WASM files out of precache. They're handled by a `CacheFirst` runtime strategy. Do not add `.wasm` to `globPatterns` — it would break the service worker install.
-
-### 6. `optimizeDeps.exclude` is required
-Without `optimizeDeps: { exclude: ['@ffmpeg/ffmpeg', '@ffmpeg/core', '@ffmpeg/core-mt'] }`, Vite's pre-bundler crashes at dev server startup trying to analyze WASM files.
+### 5. `optimizeDeps.exclude` is required for `@ffmpeg/ffmpeg`
+Without `optimizeDeps: { exclude: ['@ffmpeg/ffmpeg'] }`, Vite's pre-bundler crashes at dev server startup trying to analyze the package.
 
 ## ffmpeg.wasm v0.12 API Reference
 
 ```js
-import { FFmpeg } from '@ffmpeg/ffmpeg'
+import { FFmpeg, toBlobURL } from '@ffmpeg/ffmpeg'
 
 const ffmpeg = new FFmpeg()
 ffmpeg.on('progress', ({ progress }) => { /* 0–1 */ })
 
+// CDN URLs must be converted to blob: URLs for correct MIME type
+const base = 'https://unpkg.com/@ffmpeg/core-mt@0.12.6/dist/esm'
 await ffmpeg.load({
-  coreURL: '/ffmpeg/ffmpeg-core.js',         // or -mt variant
-  wasmURL: '/ffmpeg/ffmpeg-core.wasm',
-  workerURL: '/ffmpeg/ffmpeg-core-mt.worker.js',  // mt only
+  coreURL:   await toBlobURL(`${base}/ffmpeg-core.js`, 'text/javascript'),
+  wasmURL:   await toBlobURL(`${base}/ffmpeg-core.wasm`, 'application/wasm'),
+  workerURL: await toBlobURL(`${base}/ffmpeg-core.worker.js`, 'text/javascript'),
 })
 
 await ffmpeg.writeFile('input.mp4', uint8Array)

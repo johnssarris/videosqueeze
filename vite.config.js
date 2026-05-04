@@ -21,7 +21,7 @@ export default defineConfig({
   },
 
   optimizeDeps: {
-    exclude: ['@ffmpeg/ffmpeg', '@ffmpeg/core', '@ffmpeg/core-mt'],
+    exclude: ['@ffmpeg/ffmpeg'],
   },
 
   worker: {
@@ -36,20 +36,6 @@ export default defineConfig({
 
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,webmanifest}'],
-        globIgnores: ['ffmpeg/**'],
-        runtimeCaching: [
-          {
-            urlPattern: /\/ffmpeg\/.*/i,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'ffmpeg-wasm-cache',
-              expiration: {
-                maxEntries: 10,
-                maxAgeSeconds: 60 * 60 * 24 * 30,
-              },
-            },
-          },
-        ],
       },
 
       manifest: {
