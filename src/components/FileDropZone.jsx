@@ -1,6 +1,5 @@
 import { useRef, useState, useCallback } from 'react'
-
-const SIZE_WARNING_BYTES = 200 * 1024 * 1024
+import { FILE_SIZE_WARNING_BYTES } from '../utils/constants'
 
 function extractVideoMetadata(file) {
   return new Promise((resolve) => {
@@ -57,7 +56,7 @@ export default function FileDropZone({ onFileSelected, disabled }) {
   const onDragOver = (e) => { e.preventDefault(); if (!disabled) setIsDragOver(true) }
   const onDragLeave = () => setIsDragOver(false)
 
-  const sizeWarning = fileInfo && fileInfo.file.size > SIZE_WARNING_BYTES
+  const sizeWarning = fileInfo && fileInfo.file.size > FILE_SIZE_WARNING_BYTES
 
   return (
     <div>
@@ -104,7 +103,7 @@ export default function FileDropZone({ onFileSelected, disabled }) {
           {sizeWarning && (
             <p className="text-amber-400 text-xs mt-1 flex items-start gap-1">
               <span>⚠️</span>
-              <span>Over 200 MB — may be slow or run out of memory on mobile.</span>
+              <span>Over 500 MB — may be slow or run out of memory on mobile.</span>
             </p>
           )}
         </div>

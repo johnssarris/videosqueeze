@@ -176,17 +176,18 @@ export default function SettingsPanel({ settings, onChange, disabled }) {
               label="Audio delay"
               value={settings.audioDelay}
               onChange={set('audioDelay')}
-              min={-2000}
+              min={0}
               max={2000}
               step={50}
               display={
                 settings.audioDelay === 0
                   ? '0 ms (no correction)'
-                  : `${settings.audioDelay > 0 ? '+' : ''}${settings.audioDelay} ms`
+                  : `+${settings.audioDelay} ms`
               }
             />
             <p className="text-xs text-slate-500 mt-1">
-              Positive = delay audio (audio plays too early). Negative = advance audio (audio plays too late).
+              Use when audio plays before video. Shifts audio later to match.
+              Correcting audio that plays <em>after</em> video requires re-encoding separately.
             </p>
           </div>
         </div>

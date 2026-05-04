@@ -12,7 +12,11 @@ import ResultView from './components/ResultView'
 const VERSION = import.meta.env.VITE_APP_VERSION
 
 export default function App() {
-  const { needRefresh: [needsRefresh], updateServiceWorker } = useRegisterSW()
+  const {
+    needRefresh: [needsRefresh],
+    offlineReady: [isOfflineReady, setOfflineReady],
+    updateServiceWorker,
+  } = useRegisterSW()
 
   const {
     isLoaded,
@@ -51,7 +55,7 @@ export default function App() {
       const data = await compress({ file: fileInfo.file, args, outputFilename })
       setResult({ filename: outputFilename, data, inputSize: fileInfo.file.size })
     } catch (err) {
-      if (err?.message && !err.message.includes('terminated')) {
+      if (err?.message && !/terminat|abort|cancel/i.test(err.message)) {
         setCompressError(err.message)
       }
     }
@@ -84,6 +88,19 @@ export default function App() {
         </div>
       )}
 
+      {isOfflineReady && (
+        <div className="bg-slate-800 border-b border-slate-700 px-4 py-2.5 flex items-center justify-between gap-4">
+          <span className="text-slate-300 text-sm">Ready to work offline.</span>
+          <button
+            onClick={() => setOfflineReady(false)}
+            className="text-slate-500 hover:text-slate-300 text-lg leading-none"
+            aria-label="Dismiss"
+          >
+            ×
+          </button>
+        </div>
+      )}
+
       <div className="max-w-md mx-auto px-4 py-6 space-y-5">
         {/* Header */}
         <div className="flex items-start justify-between">
@@ -104,7 +121,7 @@ export default function App() {
 
         {isLoading && (
           <div className="flex items-center gap-3 p-4 bg-slate-800 rounded-xl text-slate-400">
-            <span className="text-xl animate-spin inline-block">⏳</span>
+            <div className="w-5 h-5 rounded-full border-2 border-slate-600 border-t-blue-400 animate-spin shrink-0" />
             <div>
               <p className="text-sm font-medium text-slate-300">Loading ffmpeg.wasm…</p>
               <p className="text-xs mt-0.5">This may take a moment on first load.</p>

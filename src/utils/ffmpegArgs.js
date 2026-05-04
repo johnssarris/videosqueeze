@@ -30,12 +30,14 @@ function interpolateCrfBitrate(crf) {
 
 export function estimateOutputSize(settings, durationSeconds) {
   if (!durationSeconds || durationSeconds <= 0) return 0
-  const { resolution, crf, audioCodec, audioBitrate, stripVideo } = settings
+  const { resolution, crf, videoCodec, audioCodec, audioBitrate, stripVideo } = settings
 
   let videoBitrateKbps = 0
   if (!stripVideo) {
     const base = interpolateCrfBitrate(crf)
-    videoBitrateKbps = base * (RESOLUTION_SCALE[resolution] ?? 1)
+    // H.265 achieves roughly half the bitrate of H.264 at equivalent CRF
+    const codecMultiplier = videoCodec === 'h265' ? 0.5 : 1.0
+    videoBitrateKbps = base * (RESOLUTION_SCALE[resolution] ?? 1) * codecMultiplier
   }
 
   const audioBitrateKbps = audioCodec === 'strip' ? 0 : (AUDIO_BITRATE_KBPS[audioBitrate] ?? 96)
@@ -134,13 +136,11 @@ export function buildFFmpegArgs(settings, originalFilename) {
 
     const afFilters = []
 
+    // Positive delay only: adelay pushes audio later relative to video.
+    // Negative (advancing audio) requires a separate video input stream and
+    // is not supported in this single-file workflow.
     if (audioDelay > 0) {
-      // Delay audio: push it later in time
       afFilters.push(`adelay=${audioDelay}:all=1`)
-    } else if (audioDelay < 0) {
-      // Advance audio: trim the first N seconds of audio so it starts earlier
-      const trimSec = Math.abs(audioDelay) / 1000
-      afFilters.push(`atrim=start=${trimSec},asetpts=PTS-STARTPTS`)
     }
 
     if (volume !== 100) {
