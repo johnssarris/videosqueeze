@@ -76,7 +76,7 @@ export default function SettingsPanel({ settings, onChange, disabled }) {
       <button
         onClick={() => setOpen((o) => !o)}
         className="w-full flex items-center justify-between px-4 py-3 bg-slate-800
-                   hover:bg-slate-750 text-slate-200 text-sm font-medium transition-colors"
+                   hover:bg-slate-700 text-slate-200 text-sm font-medium transition-colors"
       >
         <span>Settings</span>
         <span className="text-slate-400 text-xs">{open ? '▲ Hide' : '▼ Customize'}</span>
