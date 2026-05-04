@@ -88,7 +88,7 @@ export function useFFmpeg() {
       await ffmpeg.deleteFile(outputFilename).catch(() => {})
       return data
     } finally {
-      ffmpeg.off('progress', progressHandler)
+      try { ffmpeg.off('progress', progressHandler) } catch (_) {}
       setIsProcessing(false)
     }
   }, [])

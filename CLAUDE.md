@@ -99,7 +99,7 @@ After `terminate()`, the ref is null and `isLoaded` resets. `cancel()` in `useFF
   audioCodec: 'aac' | 'opus' | 'strip',
   audioBitrate: '64k' | '96k' | '128k' | '192k',
   volume: 0–200,        // percent, 100 = unchanged
-  audioDelay: -2000–2000,  // ms; positive = delay audio, negative = advance audio
+  audioDelay: 0–2000,  // ms; positive only — delays audio to fix audio-ahead-of-video sync
 }
 ```
 
