@@ -1,0 +1,117 @@
+import { useRef, useState, useCallback, useEffect } from 'react'
+import { FFmpeg } from '@ffmpeg/ffmpeg'
+
+function getFFmpegURLs() {
+  const base = `${window.location.origin}${import.meta.env.BASE_URL}ffmpeg`
+  const isMultiThread =
+    typeof crossOriginIsolated !== 'undefined' &&
+    crossOriginIsolated === true &&
+    typeof SharedArrayBuffer !== 'undefined'
+
+  if (isMultiThread) {
+    return {
+      threaded: true,
+      coreURL: `${base}/ffmpeg-core-mt.js`,
+      wasmURL: `${base}/ffmpeg-core-mt.wasm`,
+      workerURL: `${base}/ffmpeg-core-mt.worker.js`,
+    }
+  }
+  return {
+    threaded: false,
+    coreURL: `${base}/ffmpeg-core.js`,
+    wasmURL: `${base}/ffmpeg-core.wasm`,
+    workerURL: undefined,
+  }
+}
+
+export function useFFmpeg() {
+  const ffmpegRef = useRef(null)
+  const [isLoaded, setIsLoaded] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [loadError, setLoadError] = useState(null)
+  const [isThreaded, setIsThreaded] = useState(false)
+  const [progress, setProgress] = useState(0)
+  const [isProcessing, setIsProcessing] = useState(false)
+
+  const load = useCallback(async () => {
+    if (ffmpegRef.current?.loaded) return
+    setIsLoading(true)
+    setLoadError(null)
+    try {
+      const ffmpeg = new FFmpeg()
+      const urls = getFFmpegURLs()
+
+      await ffmpeg.load({
+        coreURL: urls.coreURL,
+        wasmURL: urls.wasmURL,
+        ...(urls.workerURL ? { workerURL: urls.workerURL } : {}),
+      })
+
+      ffmpegRef.current = ffmpeg
+      setIsThreaded(urls.threaded)
+      setIsLoaded(true)
+    } catch (err) {
+      setLoadError(err.message || 'Failed to load ffmpeg.wasm')
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    load()
+  }, [load])
+
+  const compress = useCallback(async ({ file, args, outputFilename }) => {
+    const ffmpeg = ffmpegRef.current
+    if (!ffmpeg) throw new Error('ffmpeg not loaded')
+
+    setIsProcessing(true)
+    setProgress(0)
+
+    const progressHandler = ({ progress: p }) => {
+      setProgress(Math.max(0, Math.min(1, p)))
+    }
+    ffmpeg.on('progress', progressHandler)
+
+    try {
+      const inputData = new Uint8Array(await file.arrayBuffer())
+      const ext = file.name.includes('.') ? file.name.substring(file.name.lastIndexOf('.')) : '.mp4'
+      const inputFilename = `input${ext}`
+      await ffmpeg.writeFile(inputFilename, inputData)
+
+      // args from buildFFmpegArgs does not include -i or the output path
+      const exitCode = await ffmpeg.exec(['-i', inputFilename, ...args, outputFilename])
+      if (exitCode !== 0) throw new Error(`ffmpeg exited with code ${exitCode}`)
+
+      const data = await ffmpeg.readFile(outputFilename)
+      await ffmpeg.deleteFile(inputFilename).catch(() => {})
+      await ffmpeg.deleteFile(outputFilename).catch(() => {})
+      return data
+    } finally {
+      ffmpeg.off('progress', progressHandler)
+      setIsProcessing(false)
+    }
+  }, [])
+
+  const cancel = useCallback(() => {
+    try { ffmpegRef.current?.terminate() } catch (_) {}
+    ffmpegRef.current = null
+    setIsLoaded(false)
+    setIsProcessing(false)
+    setProgress(0)
+    // Auto-reload so the user can compress another file without a page refresh
+    setTimeout(() => load(), 50)
+  }, [load])
+
+  return {
+    isLoaded,
+    isLoading,
+    loadError,
+    isThreaded,
+    progress,
+    isProcessing,
+    compress,
+    cancel,
+    reload: load,
+  }
+}
