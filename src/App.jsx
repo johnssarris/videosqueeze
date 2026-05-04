@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { useRegisterSW } from 'virtual:pwa-register/react'
 import { useFFmpeg } from './hooks/useFFmpeg'
 import { buildFFmpegArgs, DEFAULT_SETTINGS } from './utils/ffmpegArgs'
@@ -34,6 +34,7 @@ export default function App() {
   const [settings, setSettings] = useState(DEFAULT_SETTINGS)
   const [result, setResult] = useState(null)
   const [compressError, setCompressError] = useState(null)
+  const encodeStartRef = useRef(null)
 
   const handleFileSelected = useCallback((info) => {
     setFileInfo(info)
@@ -52,14 +53,26 @@ export default function App() {
 
     try {
       const { args, outputFilename } = buildFFmpegArgs(settings, fileInfo.file.name)
+      encodeStartRef.current = Date.now()
       const data = await compress({ file: fileInfo.file, args, outputFilename })
-      setResult({ filename: outputFilename, data, inputSize: fileInfo.file.size })
+      const encodeDuration = Date.now() - encodeStartRef.current
+      setResult({
+        filename: outputFilename,
+        data,
+        inputSize: fileInfo.file.size,
+        encodeDuration,
+        isThreaded,
+        videoDuration: fileInfo.duration,
+        inputWidth: fileInfo.width,
+        inputHeight: fileInfo.height,
+        outputFps: settings.framerate,
+      })
     } catch (err) {
       if (err?.message && !/terminat|abort|cancel/i.test(err.message)) {
         setCompressError(err.message)
       }
     }
-  }, [fileInfo, isLoaded, isProcessing, settings, compress])
+  }, [fileInfo, isLoaded, isProcessing, settings, compress, isThreaded])
 
   const handleCancel = useCallback(() => {
     cancel()
