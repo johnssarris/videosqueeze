@@ -103,7 +103,7 @@ export default function FileDropZone({ onFileSelected, disabled }) {
           {sizeWarning && (
             <p className="text-amber-400 text-xs mt-1 flex items-start gap-1">
               <span>⚠️</span>
-              <span>Over 200 MB — may be slow or run out of memory on mobile.</span>
+              <span>Over 500 MB — may be slow or run out of memory on mobile.</span>
             </p>
           )}
         </div>
