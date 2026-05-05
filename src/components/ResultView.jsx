@@ -63,6 +63,9 @@ export default function ResultView({ result, onReset, logCount = 0, onExportLog 
   const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) ||
     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
 
+  const canShare = typeof navigator.share === 'function' &&
+    typeof navigator.canShare === 'function'
+
   const handleDownload = () => {
     const blob = new Blob([data], { type: 'video/mp4' })
     const url = URL.createObjectURL(blob)
@@ -71,6 +74,16 @@ export default function ResultView({ result, onReset, logCount = 0, onExportLog 
     a.download = filename
     a.click()
     setTimeout(() => URL.revokeObjectURL(url), 1000)
+  }
+
+  const handleShare = async () => {
+    const blob = new Blob([data], { type: 'video/mp4' })
+    const file = new File([blob], filename, { type: 'video/mp4' })
+    try {
+      await navigator.share({ files: [file], title: filename })
+    } catch (err) {
+      if (err?.name !== 'AbortError') handleDownload()
+    }
   }
 
   return (
@@ -179,6 +192,15 @@ export default function ResultView({ result, onReset, logCount = 0, onExportLog 
         >
           Download
         </button>
+        {canShare && (
+          <button
+            onClick={handleShare}
+            className="flex-1 py-3 bg-blue-600 hover:bg-blue-500 active:bg-blue-700
+                       text-white font-semibold text-sm rounded-xl transition-colors"
+          >
+            Share
+          </button>
+        )}
         <button
           onClick={onReset}
           className="px-4 py-3 bg-slate-700 hover:bg-slate-600 text-slate-200
