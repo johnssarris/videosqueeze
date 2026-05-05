@@ -34,6 +34,7 @@ export default function App() {
   const [settings, setSettings] = useState(DEFAULT_SETTINGS)
   const [result, setResult] = useState(null)
   const [compressError, setCompressError] = useState(null)
+  const [compressionLog, setCompressionLog] = useState([])
   const encodeStartRef = useRef(null)
 
   const handleFileSelected = useCallback((info) => {
@@ -54,7 +55,7 @@ export default function App() {
     try {
       const { args, outputFilename } = buildFFmpegArgs(settings, fileInfo.file.name)
       encodeStartRef.current = Date.now()
-      const data = await compress({ file: fileInfo.file, args, outputFilename })
+      const { data, metrics } = await compress({ file: fileInfo.file, args, outputFilename })
       const encodeDuration = Date.now() - encodeStartRef.current
       setResult({
         filename: outputFilename,
@@ -66,7 +67,37 @@ export default function App() {
         inputWidth: fileInfo.width,
         inputHeight: fileInfo.height,
         outputFps: settings.framerate,
+        videoCodec: settings.videoCodec,
+        metrics,
       })
+      setCompressionLog(prev => [...prev, {
+        timestamp: new Date().toISOString(),
+        input: {
+          filename: fileInfo.file.name,
+          sizeMB: +(fileInfo.file.size / 1024 / 1024).toFixed(2),
+          durationSec: fileInfo.duration,
+          width: fileInfo.width,
+          height: fileInfo.height,
+        },
+        settings: { ...settings },
+        output: {
+          filename: outputFilename,
+          sizeMB: +(data.byteLength / 1024 / 1024).toFixed(2),
+          savingsPercent: fileInfo.file.size > 0
+            ? +((1 - data.byteLength / fileInfo.file.size) * 100).toFixed(1)
+            : null,
+        },
+        performance: {
+          totalDurationMs: encodeDuration,
+          writeTimeMs: metrics ? +metrics.writeTime.toFixed(0) : null,
+          encodeTimeMs: metrics ? +metrics.encodeTime.toFixed(0) : null,
+          readTimeMs: metrics ? +metrics.readTime.toFixed(0) : null,
+          isThreaded,
+          hardwareConcurrency: metrics?.hardwareConcurrency ?? null,
+          peakMemoryMB: metrics?.peakMemoryMB != null ? +metrics.peakMemoryMB.toFixed(1) : null,
+          memDeltaMB: metrics?.memDeltaMB != null ? +metrics.memDeltaMB.toFixed(1) : null,
+        },
+      }])
     } catch (err) {
       if (err?.message && !/terminat|abort|cancel/i.test(err.message)) {
         setCompressError(err.message)
@@ -83,6 +114,16 @@ export default function App() {
     setResult(null)
     setCompressError(null)
   }, [])
+
+  const handleExportLog = useCallback(() => {
+    const blob = new Blob([JSON.stringify(compressionLog, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `vidsqueeze-log-${Date.now()}.json`
+    a.click()
+    setTimeout(() => URL.revokeObjectURL(url), 1000)
+  }, [compressionLog])
 
   const showSettings = isLoaded && !isProcessing && !result && fileInfo
 
@@ -199,7 +240,12 @@ export default function App() {
         )}
 
         {result && !isProcessing && (
-          <ResultView result={result} onReset={handleReset} />
+          <ResultView
+            result={result}
+            onReset={handleReset}
+            logCount={compressionLog.length}
+            onExportLog={handleExportLog}
+          />
         )}
 
         <p className="text-xs text-slate-700 text-center pt-2">
