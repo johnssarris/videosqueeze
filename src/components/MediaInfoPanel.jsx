@@ -12,6 +12,11 @@ function fmtFps(fps) {
   return Number.isInteger(fps) ? `${fps}` : fps.toFixed(3).replace(/\.?0+$/, '')
 }
 
+function fmtVideoBitrate(kbps) {
+  if (kbps >= 1000) return `${(kbps / 1000).toFixed(1)} Mbps`
+  return `${Math.round(kbps)} kbps`
+}
+
 export default function MediaInfoPanel({ mediaInfo, fileInfo, isProbing }) {
   if (isProbing) {
     return (
@@ -25,7 +30,11 @@ export default function MediaInfoPanel({ mediaInfo, fileInfo, isProbing }) {
   const parts = []
   if (fileInfo?.width > 0) parts.push(`${fileInfo.width}×${fileInfo.height}`)
   if (mediaInfo?.framerate != null) parts.push(`${fmtFps(mediaInfo.framerate)} fps`)
-  if (mediaInfo?.videoCodec) parts.push(fmtCodec(mediaInfo.videoCodec))
+  if (mediaInfo?.videoCodec) {
+    let v = fmtCodec(mediaInfo.videoCodec)
+    if (mediaInfo.videoBitrate != null) v += ` ${fmtVideoBitrate(mediaInfo.videoBitrate)}`
+    parts.push(v)
+  }
   if (mediaInfo?.audioCodec) {
     let a = fmtCodec(mediaInfo.audioCodec)
     if (mediaInfo.audioBitrate != null) a += ` ${mediaInfo.audioBitrate}k`
