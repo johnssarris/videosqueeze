@@ -36,6 +36,26 @@ export default defineConfig({
 
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,webmanifest}'],
+        runtimeCaching: [
+          {
+            urlPattern: /^https:\/\/unpkg\.com\/@ffmpeg\//,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'ffmpeg-wasm-cdn-cache',
+              expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 90 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+          {
+            urlPattern: /^https:\/\/cdn\.jsdelivr\.net\/@ffmpeg\//,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'ffmpeg-wasm-cdn-cache',
+              expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 90 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+        ],
       },
 
       manifest: {

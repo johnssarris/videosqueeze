@@ -22,6 +22,8 @@ export default function App() {
     isLoaded,
     isLoading,
     loadError,
+    loadProgress,
+    isLoadingFromCache,
     isThreaded,
     progress,
     isProcessing,
@@ -174,12 +176,28 @@ export default function App() {
         </div>
 
         {isLoading && (
-          <div className="flex items-center gap-3 p-4 bg-slate-800 rounded-xl text-slate-400">
-            <div className="w-5 h-5 rounded-full border-2 border-slate-600 border-t-blue-400 animate-spin shrink-0" />
-            <div>
-              <p className="text-sm font-medium text-slate-300">Loading ffmpeg.wasm…</p>
-              <p className="text-xs mt-0.5">This may take a moment on first load.</p>
-            </div>
+          <div className="p-4 bg-slate-800 rounded-xl space-y-3">
+            {isLoadingFromCache ? (
+              <div className="flex items-center gap-3 text-slate-400">
+                <div className="w-5 h-5 rounded-full border-2 border-slate-600 border-t-blue-400 animate-spin shrink-0" />
+                <p className="text-sm font-medium text-slate-300">Loading from cache…</p>
+              </div>
+            ) : (
+              <>
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium text-slate-300">
+                    Downloading ffmpeg engine… {loadProgress}%
+                  </p>
+                </div>
+                <div className="w-full bg-slate-700 rounded-full h-2 overflow-hidden">
+                  <div
+                    className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${loadProgress}%` }}
+                  />
+                </div>
+                <p className="text-xs text-slate-500">This may take a moment on first load.</p>
+              </>
+            )}
           </div>
         )}
 
