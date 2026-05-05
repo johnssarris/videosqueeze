@@ -26,11 +26,12 @@ function StatRow({ label, value }) {
   )
 }
 
-export default function ResultView({ result, onReset }) {
+export default function ResultView({ result, onReset, logCount = 0, onExportLog }) {
   const {
     filename, data, inputSize,
     encodeDuration, isThreaded,
     videoDuration, inputWidth, inputHeight, outputFps,
+    videoCodec, metrics,
   } = result
   const outputSize = data.byteLength
   const ratio = inputSize > 0 ? ((1 - outputSize / inputSize) * 100) : null
@@ -45,6 +46,22 @@ export default function ResultView({ result, onReset }) {
   const throughput = (hasDuration && fpsNum)
     ? Math.round(fpsNum * videoDuration / encodeSeconds)
     : null
+
+  const totalPhaseTime = metrics ? metrics.writeTime + metrics.encodeTime + metrics.readTime : 0
+  const writePct  = totalPhaseTime > 0 ? (metrics.writeTime  / totalPhaseTime) * 100 : 0
+  const encodePct = totalPhaseTime > 0 ? (metrics.encodeTime / totalPhaseTime) * 100 : 0
+  const readPct   = totalPhaseTime > 0 ? (metrics.readTime   / totalPhaseTime) * 100 : 0
+  const hasIoOverhead = metrics && totalPhaseTime > 0 &&
+    (metrics.writeTime / totalPhaseTime > 0.15 || metrics.readTime / totalPhaseTime > 0.15)
+  const showH265Tip = videoCodec === 'h265' && totalPhaseTime > 0 &&
+    metrics.encodeTime / totalPhaseTime > 0.9
+  const coreCount = metrics?.hardwareConcurrency ?? null
+  const coreLabel = coreCount
+    ? isThreaded ? `${coreCount} cores (multi-thread)` : `1 of ${coreCount} cores (single-thread)`
+    : isThreaded ? 'Multi-thread' : 'Single-thread'
+
+  const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
 
   const handleDownload = () => {
     const blob = new Blob([data], { type: 'video/mp4' })
@@ -106,14 +123,55 @@ export default function ResultView({ result, onReset }) {
               label="Threading"
               value={isThreaded ? '⚡ Multi-thread' : '🐢 Single-thread'}
             />
+            {coreCount !== null && (
+              <StatRow label="CPU cores" value={coreLabel} />
+            )}
+            {metrics?.memAvailable && metrics.peakMemoryMB !== null && (
+              <StatRow
+                label="Peak memory"
+                value={`${metrics.peakMemoryMB.toFixed(0)} MB (+${metrics.memDeltaMB.toFixed(0)} MB)`}
+              />
+            )}
             {inputWidth > 0 && (
               <StatRow label="Source resolution" value={`${inputWidth}×${inputHeight}`} />
+            )}
+            {metrics && totalPhaseTime > 0 && (
+              <div className="mt-1.5 space-y-1">
+                <div className="flex h-2 rounded-full overflow-hidden">
+                  <div style={{ width: `${writePct}%` }} className="bg-blue-500" title={`Write: ${metrics.writeTime.toFixed(0)}ms`} />
+                  <div style={{ width: `${encodePct}%` }} className="bg-violet-500" title={`Encode: ${metrics.encodeTime.toFixed(0)}ms`} />
+                  <div style={{ width: `${readPct}%` }} className="bg-teal-500" title={`Read: ${metrics.readTime.toFixed(0)}ms`} />
+                </div>
+                <div className="flex gap-3 text-xs text-slate-500">
+                  <span><span className="inline-block w-1.5 h-1.5 rounded-full bg-blue-500 mr-1 align-middle" />Write {writePct.toFixed(0)}%</span>
+                  <span><span className="inline-block w-1.5 h-1.5 rounded-full bg-violet-500 mr-1 align-middle" />Encode {encodePct.toFixed(0)}%</span>
+                  <span><span className="inline-block w-1.5 h-1.5 rounded-full bg-teal-500 mr-1 align-middle" />Read {readPct.toFixed(0)}%</span>
+                </div>
+              </div>
+            )}
+            {metrics && (!isThreaded || showH265Tip || hasIoOverhead) && (
+              <div className="mt-2 space-y-1.5 border-t border-slate-700/60 pt-2.5">
+                <p className="text-slate-500 text-xs font-medium uppercase tracking-wide">Insights</p>
+                {!isThreaded && (
+                  <p className="text-xs text-amber-400/90">
+                    {isIOS
+                      ? 'Single-thread mode — multi-thread compression isn\'t supported on iPhone or iPad.'
+                      : 'Single-thread mode — try Chrome or Edge for faster compression.'}
+                  </p>
+                )}
+                {showH265Tip && (
+                  <p className="text-xs text-amber-400/90">H.265 is slower than H.264; switch to H.264 for faster encoding.</p>
+                )}
+                {hasIoOverhead && (
+                  <p className="text-xs text-slate-400">File I/O overhead detected — common with very large files.</p>
+                )}
+              </div>
             )}
           </div>
         </details>
       </div>
 
-      <div className="flex gap-2 pt-1">
+      <div className="flex flex-wrap gap-2 pt-1">
         <button
           onClick={handleDownload}
           className="flex-1 py-3 bg-blue-600 hover:bg-blue-500 active:bg-blue-700
@@ -128,6 +186,16 @@ export default function ResultView({ result, onReset }) {
         >
           New file
         </button>
+        {logCount > 0 && (
+          <button
+            onClick={onExportLog}
+            className="px-4 py-3 bg-slate-700 hover:bg-slate-600 text-slate-200
+                       text-sm rounded-xl transition-colors"
+            title={`Export ${logCount} run${logCount > 1 ? 's' : ''} as JSON`}
+          >
+            Export log ({logCount})
+          </button>
+        )}
       </div>
 
       <p className="text-xs text-slate-500 truncate" title={filename}>

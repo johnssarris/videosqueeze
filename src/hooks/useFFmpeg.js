@@ -26,6 +26,12 @@ async function getFFmpegURLs() {
   return { threaded: false, coreURL, wasmURL, workerURL: undefined }
 }
 
+function getHeapMB() {
+  return performance?.memory?.usedJSHeapSize != null
+    ? performance.memory.usedJSHeapSize / (1024 * 1024)
+    : null
+}
+
 export function useFFmpeg() {
   const ffmpegRef = useRef(null)
   const [isLoaded, setIsLoaded] = useState(false)
@@ -75,21 +81,56 @@ export function useFFmpeg() {
     }
     ffmpeg.on('progress', progressHandler)
 
+    let memPollId = null
+
     try {
       const inputData = new Uint8Array(await file.arrayBuffer())
       const ext = file.name.includes('.') ? file.name.substring(file.name.lastIndexOf('.')) : '.mp4'
       const inputFilename = `input${ext}`
-      await ffmpeg.writeFile(inputFilename, inputData)
 
+      const t0 = performance.now()
+      await ffmpeg.writeFile(inputFilename, inputData)
+      const t1 = performance.now()
+
+      const baselineMemMB = getHeapMB()
+      let peakMemMB = baselineMemMB
+
+      if (baselineMemMB !== null) {
+        memPollId = setInterval(() => {
+          const current = getHeapMB()
+          if (current !== null && current > peakMemMB) peakMemMB = current
+        }, 200)
+      }
+
+      const t2 = performance.now()
       // args from buildFFmpegArgs does not include -i or the output path
       const exitCode = await ffmpeg.exec(['-i', inputFilename, ...args, outputFilename])
+      const t3 = performance.now()
+
+      if (memPollId !== null) { clearInterval(memPollId); memPollId = null }
       if (exitCode !== 0) throw new Error(`ffmpeg exited with code ${exitCode}`)
 
+      const t4 = performance.now()
       const data = await ffmpeg.readFile(outputFilename)
+      const t5 = performance.now()
+
       await ffmpeg.deleteFile(inputFilename).catch(() => {})
       await ffmpeg.deleteFile(outputFilename).catch(() => {})
-      return data
+
+      const memAvailable = baselineMemMB !== null
+      const metrics = {
+        writeTime: t1 - t0,
+        encodeTime: t3 - t2,
+        readTime: t5 - t4,
+        memAvailable,
+        peakMemoryMB: memAvailable ? peakMemMB : null,
+        memDeltaMB: memAvailable ? peakMemMB - baselineMemMB : null,
+        hardwareConcurrency: navigator.hardwareConcurrency ?? null,
+      }
+
+      return { data, metrics }
     } finally {
+      if (memPollId !== null) clearInterval(memPollId)
       try { ffmpeg.off('progress', progressHandler) } catch (_) {}
       setIsProcessing(false)
     }
