@@ -1,10 +1,12 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { useRegisterSW } from 'virtual:pwa-register/react'
 import { useFFmpeg } from './hooks/useFFmpeg'
+import { useCropDetect } from './hooks/useCropDetect'
 import { buildFFmpegArgs, DEFAULT_SETTINGS } from './utils/ffmpegArgs'
 import { parseMediaInfo } from './utils/mediaProbe'
 import FileDropZone from './components/FileDropZone'
 import MediaInfoPanel from './components/MediaInfoPanel'
+import CropPreview from './components/CropPreview'
 import SettingsPanel from './components/SettingsPanel'
 import PresetButtons from './components/PresetButtons'
 import EstimatedSize from './components/EstimatedSize'
@@ -44,11 +46,19 @@ export default function App() {
   const [compressionLog, setCompressionLog] = useState([])
   const encodeStartRef = useRef(null)
 
+  const { cropRegion, thumbnailDataUrl, isDetecting } = useCropDetect(
+    fileInfo?.file ?? null,
+    fileInfo?.width ?? null,
+    fileInfo?.height ?? null,
+  )
+
   const handleFileSelected = useCallback((info) => {
     setFileInfo(info)
     setMediaInfo(null)
     setResult(null)
     setCompressError(null)
+    // Clear stale crop immediately — useCropDetect will set the new one once detected
+    setSettings(prev => ({ ...prev, crop: null }))
   }, [])
 
   useEffect(() => {
@@ -96,8 +106,21 @@ export default function App() {
     return () => { cancelled = true }
   }, [isLoaded, fileInfo, probe, isProcessing])
 
+  // Sync auto-detected crop into settings whenever detection produces a new result
+  useEffect(() => {
+    setSettings(prev => ({
+      ...prev,
+      crop: cropRegion ? { ...cropRegion, enabled: true } : null,
+    }))
+  }, [cropRegion])
+
   const handleApplyPreset = useCallback((preset) => {
-    setSettings(preset)
+    // Spread over prev so that crop (not included in presets) is preserved
+    setSettings(prev => ({ ...prev, ...preset }))
+  }, [])
+
+  const handleCropChange = useCallback((newCrop) => {
+    setSettings(prev => ({ ...prev, crop: newCrop }))
   }, [])
 
   const handleCompress = useCallback(async () => {
@@ -276,6 +299,16 @@ export default function App() {
             {showSettings && (
               <>
                 <MediaInfoPanel mediaInfo={mediaInfo} fileInfo={fileInfo} isProbing={isProbing} />
+                <CropPreview
+                  cropRegion={cropRegion}
+                  thumbnailDataUrl={thumbnailDataUrl}
+                  isDetecting={isDetecting}
+                  crop={settings.crop}
+                  onChange={handleCropChange}
+                  videoWidth={fileInfo.width}
+                  videoHeight={fileInfo.height}
+                  disabled={isProcessing}
+                />
                 <PresetButtons onApply={handleApplyPreset} disabled={isProcessing} />
                 <SettingsPanel
                   settings={settings}
