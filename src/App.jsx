@@ -1,8 +1,10 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { useRegisterSW } from 'virtual:pwa-register/react'
 import { useFFmpeg } from './hooks/useFFmpeg'
 import { buildFFmpegArgs, DEFAULT_SETTINGS } from './utils/ffmpegArgs'
+import { parseMediaInfo } from './utils/mediaProbe'
 import FileDropZone from './components/FileDropZone'
+import MediaInfoPanel from './components/MediaInfoPanel'
 import SettingsPanel from './components/SettingsPanel'
 import PresetButtons from './components/PresetButtons'
 import EstimatedSize from './components/EstimatedSize'
@@ -28,11 +30,14 @@ export default function App() {
     progress,
     isProcessing,
     compress,
+    probe,
     cancel,
     reload,
+    isProbing,
   } = useFFmpeg()
 
   const [fileInfo, setFileInfo] = useState(null)
+  const [mediaInfo, setMediaInfo] = useState(null)
   const [settings, setSettings] = useState(DEFAULT_SETTINGS)
   const [result, setResult] = useState(null)
   const [compressError, setCompressError] = useState(null)
@@ -41,9 +46,22 @@ export default function App() {
 
   const handleFileSelected = useCallback((info) => {
     setFileInfo(info)
+    setMediaInfo(null)
     setResult(null)
     setCompressError(null)
   }, [])
+
+  useEffect(() => {
+    if (!isLoaded || !fileInfo || isProcessing) return
+    let cancelled = false
+    async function run() {
+      const lines = await probe(fileInfo.file)
+      if (cancelled) return
+      if (lines) setMediaInfo(parseMediaInfo(lines))
+    }
+    run()
+    return () => { cancelled = true }
+  }, [isLoaded, fileInfo, probe, isProcessing])
 
   const handleApplyPreset = useCallback((preset) => {
     setSettings(preset)
@@ -224,11 +242,14 @@ export default function App() {
 
             {showSettings && (
               <>
+                <MediaInfoPanel mediaInfo={mediaInfo} fileInfo={fileInfo} isProbing={isProbing} />
                 <PresetButtons onApply={handleApplyPreset} disabled={isProcessing} />
                 <SettingsPanel
                   settings={settings}
                   onChange={setSettings}
                   disabled={isProcessing}
+                  mediaInfo={mediaInfo}
+                  fileInfo={fileInfo}
                 />
                 <EstimatedSize
                   settings={settings}

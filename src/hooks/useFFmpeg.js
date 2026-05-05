@@ -71,6 +71,7 @@ export function useFFmpeg() {
   const [isThreaded, setIsThreaded] = useState(false)
   const [progress, setProgress] = useState(0)
   const [isProcessing, setIsProcessing] = useState(false)
+  const [isProbing, setIsProbing] = useState(false)
 
   const load = useCallback(async () => {
     if (ffmpegRef.current?.loaded) return
@@ -171,6 +172,29 @@ export function useFFmpeg() {
     }
   }, [])
 
+  const probe = useCallback(async (file) => {
+    const ffmpeg = ffmpegRef.current
+    if (!ffmpeg) return null
+    setIsProbing(true)
+    const logLines = []
+    const logHandler = ({ message }) => { logLines.push(message) }
+    ffmpeg.on('log', logHandler)
+    try {
+      const inputData = new Uint8Array(await file.arrayBuffer())
+      const ext = file.name.includes('.') ? file.name.substring(file.name.lastIndexOf('.')) : '.mp4'
+      const inputFilename = `probe${ext}`
+      await ffmpeg.writeFile(inputFilename, inputData)
+      await ffmpeg.exec(['-i', inputFilename])  // exit code 1 is expected — no output file
+      await ffmpeg.deleteFile(inputFilename).catch(() => {})
+      return logLines
+    } catch {
+      return null
+    } finally {
+      ffmpeg.off('log', logHandler)
+      setIsProbing(false)
+    }
+  }, [])
+
   const cancel = useCallback(() => {
     try { ffmpegRef.current?.terminate() } catch (_) {}
     ffmpegRef.current = null
@@ -191,7 +215,9 @@ export function useFFmpeg() {
     progress,
     isProcessing,
     compress,
+    probe,
     cancel,
     reload: load,
+    isProbing,
   }
 }
