@@ -14,6 +14,21 @@ const RESOLUTION_SCALE = {
   '360p': 0.25,
 }
 
+const PRESET_HEIGHTS = { '1080p': 1080, '720p': 720, '480p': 480, '360p': 360 }
+
+function resolveResolutionHeight(resolution) {
+  if (resolution === 'original') return null
+  if (PRESET_HEIGHTS[resolution]) return PRESET_HEIGHTS[resolution]
+  const n = parseInt(resolution, 10)
+  return n > 0 ? n : null
+}
+
+function getResolutionScale(resolution) {
+  if (RESOLUTION_SCALE[resolution] !== undefined) return RESOLUTION_SCALE[resolution]
+  const h = resolveResolutionHeight(resolution)
+  return h ? Math.pow(h / 720, 2) : 1.0
+}
+
 const AUDIO_BITRATE_KBPS = { '64k': 64, '96k': 96, '128k': 128, '192k': 192 }
 
 function interpolateCrfBitrate(crf) {
@@ -37,10 +52,10 @@ export function estimateOutputSize(settings, durationSeconds) {
     const base = interpolateCrfBitrate(crf)
     // H.265 achieves roughly half the bitrate of H.264 at equivalent CRF
     const codecMultiplier = videoCodec === 'h265' ? 0.5 : 1.0
-    videoBitrateKbps = base * (RESOLUTION_SCALE[resolution] ?? 1) * codecMultiplier
+    videoBitrateKbps = base * getResolutionScale(resolution) * codecMultiplier
   }
 
-  const audioBitrateKbps = audioCodec === 'strip' ? 0 : (AUDIO_BITRATE_KBPS[audioBitrate] ?? 96)
+  const audioBitrateKbps = audioCodec === 'strip' ? 0 : (AUDIO_BITRATE_KBPS[audioBitrate] ?? parseInt(audioBitrate, 10) ?? 96)
   const totalKbps = videoBitrateKbps + audioBitrateKbps
   return Math.round((totalKbps * durationSeconds * 1000) / 8)
 }
@@ -93,8 +108,6 @@ export const PRESETS = {
   },
 }
 
-const RESOLUTION_WIDTH = { '1080p': 1920, '720p': 1280, '480p': 854, '360p': 640 }
-
 // Returns { args, outputFilename } where args does NOT include -i or the output path.
 // compress() in useFFmpeg.js handles the virtual FS input name and appends the output.
 export function buildFFmpegArgs(settings, originalFilename) {
@@ -119,8 +132,9 @@ export function buildFFmpegArgs(settings, originalFilename) {
     args.push('-crf', String(crf))
     args.push('-preset', 'fast')
 
-    if (resolution !== 'original') {
-      args.push('-vf', `scale=${RESOLUTION_WIDTH[resolution]}:-2`)
+    const targetHeight = resolveResolutionHeight(resolution)
+    if (targetHeight) {
+      args.push('-vf', `scale=-2:${targetHeight}`)
     }
 
     if (framerate !== 'original') {
