@@ -70,6 +70,7 @@ export const DEFAULT_SETTINGS = {
   audioBitrate: '96k',
   volume: 100,
   audioDelay: 0,
+  crop: null,
 }
 
 export const PRESETS = {
@@ -121,6 +122,7 @@ export function buildFFmpegArgs(settings, originalFilename) {
     audioBitrate,
     volume,
     audioDelay,
+    crop = null,
   } = settings
 
   const args = []
@@ -133,8 +135,20 @@ export function buildFFmpegArgs(settings, originalFilename) {
     args.push('-preset', 'fast')
 
     const targetHeight = resolveResolutionHeight(resolution)
+    const vfFilters = []
+
+    // Crop must come before scale so that scale operates on the already-cropped
+    // (9:16) frame. With crop applied, scale=-2:h correctly derives the width.
+    if (crop?.enabled) {
+      vfFilters.push(`crop=${crop.w}:${crop.h}:${crop.x}:${crop.y}`)
+    }
+
     if (targetHeight) {
-      args.push('-vf', `scale=-2:${targetHeight}`)
+      vfFilters.push(`scale=-2:${targetHeight}`)
+    }
+
+    if (vfFilters.length > 0) {
+      args.push('-vf', vfFilters.join(','))
     }
 
     if (framerate !== 'original') {
