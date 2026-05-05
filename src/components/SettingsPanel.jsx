@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 
 const RESOLUTION_HEIGHTS = { '1080p': 1080, '720p': 720, '480p': 480, '360p': 360 }
 
@@ -29,17 +29,43 @@ function parseResHeight(resolution) {
 
 function ComboField({ label, value, onChange, suggestions, disabled, placeholder }) {
   const id = `combo-${label.replace(/\s+/g, '-').toLowerCase()}`
+  const [displayValue, setDisplayValue] = useState(value)
+  const isFocused = useRef(false)
+  const didChange = useRef(false)
+
+  useEffect(() => {
+    if (!isFocused.current) setDisplayValue(value)
+  }, [value])
+
+  const handleFocus = () => {
+    isFocused.current = true
+    didChange.current = false
+    setDisplayValue('')
+  }
+
+  const handleChange = (e) => {
+    didChange.current = true
+    setDisplayValue(e.target.value)
+    onChange(e.target.value)
+  }
+
+  const handleBlur = () => {
+    isFocused.current = false
+    if (!didChange.current) setDisplayValue(value)
+  }
+
   return (
     <label className="flex flex-col gap-1">
       <span className="text-xs text-slate-400">{label}</span>
       <input
         type="text"
         list={id}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
+        value={displayValue}
+        onChange={handleChange}
+        onFocus={handleFocus}
+        onBlur={handleBlur}
         disabled={disabled}
         placeholder={placeholder}
-        autoComplete="off"
         className="bg-slate-700 border border-slate-600 text-slate-200 text-sm rounded-lg
                    px-2 py-1.5 disabled:opacity-40 disabled:cursor-not-allowed w-full"
       />
