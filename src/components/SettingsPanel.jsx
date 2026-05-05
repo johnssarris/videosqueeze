@@ -1,5 +1,7 @@
 import { useState } from 'react'
 
+const RESOLUTION_HEIGHTS = { '1080p': 1080, '720p': 720, '480p': 480, '360p': 360 }
+
 const RESOLUTIONS = [
   { value: 'original', label: 'Original' },
   { value: '1080p',    label: '1080p' },
@@ -64,12 +66,29 @@ function SectionLabel({ children }) {
   )
 }
 
-export default function SettingsPanel({ settings, onChange, disabled }) {
+function UpscaleWarning({ children }) {
+  return (
+    <p className="col-span-2 text-xs text-amber-400/80 flex items-start gap-1 mt-0.5">
+      <span>⚠</span><span>{children}</span>
+    </p>
+  )
+}
+
+export default function SettingsPanel({ settings, onChange, disabled, mediaInfo, fileInfo }) {
   const [open, setOpen] = useState(false)
 
   const set = (key) => (val) => onChange({ ...settings, [key]: val })
 
   const crfQuality = settings.crf <= 22 ? 'high quality' : settings.crf <= 30 ? 'medium quality' : 'low quality'
+
+  const resolutionWarn = !!(mediaInfo && fileInfo?.height > 0 && settings.resolution !== 'original'
+    && !settings.stripVideo && (RESOLUTION_HEIGHTS[settings.resolution] ?? 0) > fileInfo.height)
+
+  const framerateWarn = !!(mediaInfo?.framerate != null && settings.framerate !== 'original'
+    && !settings.stripVideo && parseFloat(settings.framerate) > mediaInfo.framerate + 0.5)
+
+  const audioBitrateWarn = !!(mediaInfo?.audioBitrate != null && settings.audioCodec !== 'strip'
+    && parseInt(settings.audioBitrate, 10) > mediaInfo.audioBitrate)
 
   return (
     <div className="border border-slate-700 rounded-xl overflow-hidden">
@@ -120,6 +139,16 @@ export default function SettingsPanel({ settings, onChange, disabled }) {
               />
               <span className="text-sm text-slate-300">Strip video</span>
             </label>
+            {resolutionWarn && (
+              <UpscaleWarning>
+                {settings.resolution} exceeds source ({fileInfo.height}p) — upscaling adds size without quality gain.
+              </UpscaleWarning>
+            )}
+            {framerateWarn && (
+              <UpscaleWarning>
+                {settings.framerate} fps exceeds source ({mediaInfo.framerate.toFixed(2)} fps) — duplicate frames add size.
+              </UpscaleWarning>
+            )}
           </div>
           <div className="mt-3">
             <Slider
@@ -156,6 +185,11 @@ export default function SettingsPanel({ settings, onChange, disabled }) {
               options={AUDIO_BITRATES.map((b) => ({ value: b, label: b }))}
               disabled={disabled || settings.audioCodec === 'strip'}
             />
+            {audioBitrateWarn && (
+              <UpscaleWarning>
+                {settings.audioBitrate} exceeds source audio ({mediaInfo.audioBitrate} kb/s) — extra bitrate buys nothing.
+              </UpscaleWarning>
+            )}
           </div>
           <div className="mt-3">
             <Slider
