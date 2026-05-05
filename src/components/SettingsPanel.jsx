@@ -2,22 +2,55 @@ import { useState } from 'react'
 
 const RESOLUTION_HEIGHTS = { '1080p': 1080, '720p': 720, '480p': 480, '360p': 360 }
 
-const RESOLUTIONS = [
-  { value: 'original', label: 'Original' },
+const RESOLUTION_SUGGESTIONS = [
+  { value: 'original', label: 'original' },
+  { value: '2160p',    label: '2160p (4K)' },
+  { value: '1440p',    label: '1440p' },
   { value: '1080p',    label: '1080p' },
   { value: '720p',     label: '720p' },
   { value: '480p',     label: '480p' },
   { value: '360p',     label: '360p' },
 ]
 
-const FRAMERATES = [
-  { value: 'original', label: 'Original' },
+const FRAMERATE_SUGGESTIONS = [
+  { value: 'original', label: 'original' },
   { value: '60',       label: '60 fps' },
   { value: '30',       label: '30 fps' },
+  { value: '25',       label: '25 fps' },
   { value: '24',       label: '24 fps' },
 ]
 
-const AUDIO_BITRATES = ['64k', '96k', '128k', '192k']
+const AUDIO_BITRATE_SUGGESTIONS = ['64k', '96k', '128k', '192k', '256k', '320k']
+
+function parseResHeight(resolution) {
+  if (!resolution || resolution === 'original') return 0
+  return RESOLUTION_HEIGHTS[resolution] ?? parseInt(resolution, 10) ?? 0
+}
+
+function ComboField({ label, value, onChange, suggestions, disabled, placeholder }) {
+  const id = `combo-${label.replace(/\s+/g, '-').toLowerCase()}`
+  return (
+    <label className="flex flex-col gap-1">
+      <span className="text-xs text-slate-400">{label}</span>
+      <input
+        type="text"
+        list={id}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        disabled={disabled}
+        placeholder={placeholder}
+        autoComplete="off"
+        className="bg-slate-700 border border-slate-600 text-slate-200 text-sm rounded-lg
+                   px-2 py-1.5 disabled:opacity-40 disabled:cursor-not-allowed w-full"
+      />
+      <datalist id={id}>
+        {suggestions.map((s) => (
+          <option key={s.value ?? s} value={s.value ?? s}>{s.label ?? s}</option>
+        ))}
+      </datalist>
+    </label>
+  )
+}
 
 function Select({ label, value, onChange, options, disabled }) {
   return (
@@ -82,7 +115,7 @@ export default function SettingsPanel({ settings, onChange, disabled, mediaInfo,
   const crfQuality = settings.crf <= 22 ? 'high quality' : settings.crf <= 30 ? 'medium quality' : 'low quality'
 
   const resolutionWarn = !!(mediaInfo && fileInfo?.height > 0 && settings.resolution !== 'original'
-    && !settings.stripVideo && (RESOLUTION_HEIGHTS[settings.resolution] ?? 0) > fileInfo.height)
+    && !settings.stripVideo && parseResHeight(settings.resolution) > fileInfo.height)
 
   const framerateWarn = !!(mediaInfo?.framerate != null && settings.framerate !== 'original'
     && !settings.stripVideo && parseFloat(settings.framerate) > mediaInfo.framerate + 0.5)
@@ -105,19 +138,21 @@ export default function SettingsPanel({ settings, onChange, disabled, mediaInfo,
         <div className="px-4 pb-4 bg-slate-800/50">
           <SectionLabel>Video</SectionLabel>
           <div className="grid grid-cols-2 gap-3">
-            <Select
+            <ComboField
               label="Resolution"
               value={settings.resolution}
               onChange={set('resolution')}
-              options={RESOLUTIONS}
+              suggestions={RESOLUTION_SUGGESTIONS}
               disabled={disabled || settings.stripVideo}
+              placeholder="e.g. 720p"
             />
-            <Select
+            <ComboField
               label="Framerate"
               value={settings.framerate}
               onChange={set('framerate')}
-              options={FRAMERATES}
+              suggestions={FRAMERATE_SUGGESTIONS}
               disabled={disabled || settings.stripVideo}
+              placeholder="e.g. 30"
             />
             <Select
               label="Codec"
@@ -168,22 +203,23 @@ export default function SettingsPanel({ settings, onChange, disabled, mediaInfo,
 
           <SectionLabel>Audio</SectionLabel>
           <div className="grid grid-cols-2 gap-3">
-            <Select
-              label="Codec"
-              value={settings.audioCodec}
-              onChange={set('audioCodec')}
-              options={[
-                { value: 'aac',   label: 'AAC' },
-                { value: 'strip', label: 'Strip audio' },
-              ]}
-              disabled={disabled}
-            />
-            <Select
+            <label className="flex items-center gap-2 self-end pb-1.5">
+              <input
+                type="checkbox"
+                checked={settings.audioCodec === 'strip'}
+                onChange={(e) => set('audioCodec')(e.target.checked ? 'strip' : 'aac')}
+                disabled={disabled}
+                className="accent-blue-500 w-4 h-4"
+              />
+              <span className="text-sm text-slate-300">Strip audio</span>
+            </label>
+            <ComboField
               label="Bitrate"
               value={settings.audioBitrate}
               onChange={set('audioBitrate')}
-              options={AUDIO_BITRATES.map((b) => ({ value: b, label: b }))}
+              suggestions={AUDIO_BITRATE_SUGGESTIONS}
               disabled={disabled || settings.audioCodec === 'strip'}
+              placeholder="e.g. 128k"
             />
             {audioBitrateWarn && (
               <UpscaleWarning>

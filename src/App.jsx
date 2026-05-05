@@ -57,7 +57,40 @@ export default function App() {
     async function run() {
       const lines = await probe(fileInfo.file)
       if (cancelled) return
-      if (lines) setMediaInfo(parseMediaInfo(lines))
+      if (!lines) return
+      const info = parseMediaInfo(lines)
+      setMediaInfo(info)
+
+      // Snap settings to the source values so the defaults reflect what the file already is.
+      // Users can still override everything manually after this runs.
+      setSettings(prev => {
+        const next = { ...prev }
+
+        // Resolution: match named preset by exact height, else keep 'original'
+        const PRESET_HEIGHTS = { '360p': 360, '480p': 480, '720p': 720, '1080p': 1080 }
+        if (fileInfo.height > 0) {
+          const match = Object.entries(PRESET_HEIGHTS).find(([, h]) => h === fileInfo.height)
+          next.resolution = match ? match[0] : 'original'
+        }
+
+        // Framerate: snap to nearest named preset (±0.5 fps tolerance)
+        if (info.framerate != null) {
+          const fps = info.framerate
+          if (Math.abs(fps - 60) <= 0.5 || Math.abs(fps - 59.94) <= 0.1) next.framerate = '60'
+          else if (Math.abs(fps - 30) <= 0.5 || Math.abs(fps - 29.97) <= 0.1) next.framerate = '30'
+          else if (Math.abs(fps - 24) <= 0.5 || Math.abs(fps - 23.976) <= 0.1) next.framerate = '24'
+          else next.framerate = 'original'
+        }
+
+        // Audio bitrate: highest preset that doesn't exceed source
+        if (info.audioBitrate != null) {
+          const src = info.audioBitrate
+          const snapped = [192, 128, 96, 64].find(b => b <= src)
+          next.audioBitrate = snapped ? `${snapped}k` : '64k'
+        }
+
+        return next
+      })
     }
     run()
     return () => { cancelled = true }
