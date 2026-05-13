@@ -98,7 +98,7 @@ After `terminate()`, the ref is null and `isLoaded` resets. `cancel()` in `useFF
   framerate: 'original' | '60' | '30' | '24',
   videoCodec: 'h264' | 'h265',
   stripVideo: boolean,
-  audioCodec: 'aac' | 'opus' | 'strip',
+  audioCodec: 'aac' | 'strip',
   audioBitrate: '64k' | '96k' | '128k' | '192k',
   volume: 0–200,        // percent, 100 = unchanged
   audioDelay: 0–2000,  // ms; positive only — delays audio to fix audio-ahead-of-video sync
@@ -117,4 +117,4 @@ Defined in `src/utils/ffmpegArgs.js` as plain objects matching the settings shap
 
 ## Deployment
 
-Branch `claude/build-vidsqueeze-pwa-SyVxM` contains the full implementation. Connect `johnssarris/videosqueeze` to Vercel — no extra config needed beyond what's in `vercel.json`.
+Connect `johnssarris/videosqueeze` to Vercel — no extra config needed beyond what's in `vercel.json`.

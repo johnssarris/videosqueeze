@@ -172,7 +172,7 @@ export function buildFFmpegArgs(settings, originalFilename, isHDR = false) {
   if (audioCodec === 'strip') {
     args.push('-an')
   } else {
-    args.push('-c:a', audioCodec === 'opus' ? 'libopus' : 'aac')
+    args.push('-c:a', 'aac')
     args.push('-b:a', audioBitrate)
 
     const afFilters = []
