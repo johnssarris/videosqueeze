@@ -1,5 +1,5 @@
 export function parseMediaInfo(logLines) {
-  let videoCodec = null, framerate = null, videoBitrate = null
+  let videoCodec = null, framerate = null, videoBitrate = null, isHDR = false
   let audioCodec = null, audioBitrate = null, audioSampleRate = null, audioChannels = null
 
   for (const line of logLines) {
@@ -11,6 +11,7 @@ export function parseMediaInfo(logLines) {
       if (fpsMat) framerate = parseFloat(fpsMat[1])
       const vbMat = /(\d+)\s*kb\/s/.exec(body)
       if (vbMat) videoBitrate = parseInt(vbMat[1], 10)
+      if (/bt2020|smpte2084|arib-std-b67/i.test(body)) isHDR = true
       continue
     }
     const audioMatch = /Stream #\d+:\d+[^:]*:\s*Audio:\s*(.+)/.exec(line)
@@ -26,5 +27,5 @@ export function parseMediaInfo(logLines) {
     }
   }
 
-  return { videoCodec, framerate, videoBitrate, audioCodec, audioBitrate, audioSampleRate, audioChannels }
+  return { videoCodec, framerate, videoBitrate, audioCodec, audioBitrate, audioSampleRate, audioChannels, isHDR }
 }

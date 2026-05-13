@@ -247,6 +247,16 @@ export default function SettingsPanel({ settings, onChange, disabled, mediaInfo,
               disabled={disabled || settings.audioCodec === 'strip'}
               placeholder="e.g. 128k"
             />
+            <Select
+              label="Codec"
+              value={settings.audioCodec === 'strip' ? 'aac' : settings.audioCodec}
+              onChange={set('audioCodec')}
+              options={[
+                { value: 'aac', label: 'AAC' },
+                { value: 'opus', label: 'Opus' },
+              ]}
+              disabled={disabled || settings.audioCodec === 'strip'}
+            />
             {audioBitrateWarn && (
               <UpscaleWarning>
                 {settings.audioBitrate} exceeds source audio ({mediaInfo.audioBitrate} kb/s) — extra bitrate buys nothing.

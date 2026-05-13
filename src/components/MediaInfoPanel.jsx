@@ -48,7 +48,19 @@ export default function MediaInfoPanel({ mediaInfo, fileInfo, isProbing }) {
   return (
     <div className="px-3 py-2 bg-slate-800 rounded-xl">
       <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-1">Source</p>
-      <p className="text-xs text-slate-300">{parts.join(' • ')}</p>
+      <p className="text-xs text-slate-300">
+        {parts.join(' • ')}
+        {mediaInfo?.isHDR && (
+          <span className="ml-2 px-1.5 py-0.5 bg-amber-900/50 border border-amber-700/60 text-amber-300 rounded text-xs font-medium align-middle">
+            HDR
+          </span>
+        )}
+      </p>
+      {mediaInfo?.isHDR && (
+        <p className="text-xs text-amber-400/90 mt-1.5">
+          HDR source — will be tone-mapped to SDR on compression. This is a one-way conversion.
+        </p>
+      )}
     </div>
   )
 }

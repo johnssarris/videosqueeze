@@ -129,7 +129,7 @@ export default function App() {
     setCompressError(null)
 
     try {
-      const { args, outputFilename } = buildFFmpegArgs(settings, fileInfo.file.name)
+      const { args, outputFilename } = buildFFmpegArgs(settings, fileInfo.file.name, mediaInfo?.isHDR ?? false)
       encodeStartRef.current = Date.now()
       const { data, metrics } = await compress({ file: fileInfo.file, args, outputFilename })
       const encodeDuration = Date.now() - encodeStartRef.current

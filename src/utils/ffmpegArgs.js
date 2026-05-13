@@ -111,7 +111,7 @@ export const PRESETS = {
 
 // Returns { args, outputFilename } where args does NOT include -i or the output path.
 // compress() in useFFmpeg.js handles the virtual FS input name and appends the output.
-export function buildFFmpegArgs(settings, originalFilename) {
+export function buildFFmpegArgs(settings, originalFilename, isHDR = false) {
   const {
     resolution,
     crf,
@@ -147,6 +147,17 @@ export function buildFFmpegArgs(settings, originalFilename) {
       vfFilters.push(`scale=-2:${targetHeight}`)
     }
 
+    if (isHDR) {
+      vfFilters.push(
+        'zscale=t=linear:npl=100',
+        'format=gbrpf32le',
+        'zscale=p=bt709',
+        'tonemap=tonemap=hable:desat=0',
+        'zscale=t=bt709:m=bt709:r=tv',
+        'format=yuv420p'
+      )
+    }
+
     if (vfFilters.length > 0) {
       args.push('-vf', vfFilters.join(','))
     }
@@ -154,12 +165,14 @@ export function buildFFmpegArgs(settings, originalFilename) {
     if (framerate !== 'original') {
       args.push('-r', String(framerate))
     }
+
+    args.push('-pix_fmt', 'yuv420p')
   }
 
   if (audioCodec === 'strip') {
     args.push('-an')
   } else {
-    args.push('-c:a', 'aac')
+    args.push('-c:a', audioCodec === 'opus' ? 'libopus' : 'aac')
     args.push('-b:a', audioBitrate)
 
     const afFilters = []
