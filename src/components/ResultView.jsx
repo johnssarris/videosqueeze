@@ -65,7 +65,8 @@ export default function ResultView({ result, onReset, logCount = 0, onExportLog 
   const isAndroid = /Android/i.test(navigator.userAgent)
 
   const canShare = typeof navigator.share === 'function' &&
-    typeof navigator.canShare === 'function'
+    typeof navigator.canShare === 'function' &&
+    navigator.canShare({ files: [new File([], 'test.mp4', { type: 'video/mp4' })] })
 
   const handleDownload = () => {
     const blob = new Blob([data], { type: 'video/mp4' })
