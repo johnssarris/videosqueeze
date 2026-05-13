@@ -62,6 +62,7 @@ export default function ResultView({ result, onReset, logCount = 0, onExportLog 
 
   const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) ||
     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+  const isAndroid = /Android/i.test(navigator.userAgent)
 
   const canShare = typeof navigator.share === 'function' &&
     typeof navigator.canShare === 'function'
@@ -169,7 +170,9 @@ export default function ResultView({ result, onReset, logCount = 0, onExportLog 
                   <p className="text-xs text-amber-400/90">
                     {isIOS
                       ? 'Single-thread mode — multi-thread compression isn\'t supported on iPhone or iPad.'
-                      : 'Single-thread mode — try Chrome or Edge for faster compression.'}
+                      : isAndroid
+                        ? 'Single-thread mode — open in Chrome (not an in-app browser) for faster compression.'
+                        : 'Single-thread mode — try Chrome or Edge for faster compression.'}
                   </p>
                 )}
                 {showH265Tip && (
