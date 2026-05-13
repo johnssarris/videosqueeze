@@ -133,6 +133,8 @@ function UpscaleWarning({ children }) {
   )
 }
 
+const isAndroid = /Android/i.test(navigator.userAgent)
+
 export default function SettingsPanel({ settings, onChange, disabled, mediaInfo, fileInfo }) {
   const [open, setOpen] = useState(false)
 
@@ -208,6 +210,11 @@ export default function SettingsPanel({ settings, onChange, disabled, mediaInfo,
             {framerateWarn && (
               <UpscaleWarning>
                 {settings.framerate} fps exceeds source ({mediaInfo.framerate.toFixed(2)} fps) — duplicate frames add size.
+              </UpscaleWarning>
+            )}
+            {isAndroid && settings.videoCodec === 'h265' && !settings.stripVideo && (
+              <UpscaleWarning>
+                H.265 may not play on all Android devices — H.264 is safer.
               </UpscaleWarning>
             )}
           </div>
