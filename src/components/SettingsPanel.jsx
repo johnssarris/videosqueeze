@@ -253,7 +253,6 @@ export default function SettingsPanel({ settings, onChange, disabled, mediaInfo,
               onChange={set('audioCodec')}
               options={[
                 { value: 'aac', label: 'AAC' },
-                { value: 'opus', label: 'Opus' },
               ]}
               disabled={disabled || settings.audioCodec === 'strip'}
             />

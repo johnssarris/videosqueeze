@@ -1,6 +1,6 @@
 const CODEC_LABELS = {
   h264: 'H.264', h265: 'H.265', hevc: 'H.265', vp9: 'VP9', av1: 'AV1',
-  aac: 'AAC', mp3: 'MP3', opus: 'Opus', ac3: 'AC3', vorbis: 'Vorbis',
+  aac: 'AAC', mp3: 'MP3', ac3: 'AC3', vorbis: 'Vorbis',
 }
 
 function fmtCodec(c) {
